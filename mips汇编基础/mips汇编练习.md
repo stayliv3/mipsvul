@@ -229,3 +229,109 @@ mips处理器流水线的设计。PC+4bytes的指令会在跳转之前执行。
     return 1;
     }
 
+
+得到汇编代码如下：
+
+    # int __cdecl main(int argc, const char **argv, const char **envp)
+    .globl main
+    main:
+
+    var_10= -0x10
+    var_C= -0xC
+    var_8= -8
+    var_4= -4
+
+    addiu   $sp, -0x28
+    sw      $ra, 0x28+var_4($sp)
+    sw      $fp, 0x28+var_8($sp)
+    move    $fp, $sp
+    sw      $zero, 0x28+var_10($fp)
+    li      $v0, 1
+    sw      $v0, 0x28+var_C($fp)
+    lw      $a0, 0x28+var_10($fp)
+    lw      $a1, 0x28+var_C($fp)
+    jal     call_one
+    nop
+    move    $sp, $fp
+    lw      $ra, 0x28+var_4($sp)
+    lw      $fp, 0x28+var_8($sp)
+    addiu   $sp, 0x28
+    jr      $ra
+    nop
+    # End of function main
+
+
+    .globl call_one
+    call_one:
+
+    var_8= -8
+    var_4= -4
+    arg_0=  0
+    arg_4=  4
+
+    addiu   $sp, -0x20
+    sw      $ra, 0x20+var_4($sp)
+    sw      $fp, 0x20+var_8($sp)
+    move    $fp, $sp
+    sw      $a0, 0x20+arg_0($fp)
+    sw      $a1, 0x20+arg_4($fp)
+    jal     call_two
+    nop
+    lw      $v1, 0x20+arg_0($fp)
+    lw      $v0, 0x20+arg_4($fp)
+    addu    $v0, $v1, $v0
+    move    $sp, $fp
+    lw      $ra, 0x20+var_4($sp)
+    lw      $fp, 0x20+var_8($sp)
+    addiu   $sp, 0x20
+    jr      $ra
+    nop
+    # End of function call_one
+
+    .globl call_two
+    call_two:
+
+    var_4= -4
+
+    addiu   $sp, -8
+    sw      $fp, 8+var_4($sp)
+    move    $fp, $sp
+    li      $v0, 1
+    move    $sp, $fp
+    lw      $fp, 8+var_4($sp)
+    addiu   $sp, 8
+    jr      $ra
+    nop
+    # End of function call_two
+
+记住 发生函数调用（JAL）会把 $PC+8 保存到$ra寄存器中，但是如果被调用函数还会调用其他函数时，$ra寄存器会被覆盖，调用者的地址会丢失。为了防止这种情况，返回地址首先被保存到函数入口的栈上.所以我们可以看到所有的函数会将返回地址保存到栈上，除了 函数call_two，因为call_two()没有调用其他函数。
+因为call_two不再调用其他函数，所以称为叶子函数，否则像call_one一样，称为非叶子函数。
+
+## 条件分支
+
+分析一个新架构的时候，最重要的事情之一是处理器怎么处理条件分支。
+下面的程序会传入一个命令行参数，类型为int， 并判断是否小于5
+
+    #include <stdio.h>
+
+    // What if....
+    // This is to analyze how basic branching works on MIPS
+    // by b1ack0wl
+
+    int main(int argc, char **argv[]){
+    if (argc < 2 ){
+        printf("Usage: %s number", argv[0]);
+        return 1;
+    }
+
+    int a = atoi(argv[1]); // cast argv[1] as an integer
+    if (a < 5) {
+        printf("%i is less than 5", a);
+    }
+    else{
+        printf("%i is greater than 5", a);
+    }
+    return 0;
+    }
+
+
